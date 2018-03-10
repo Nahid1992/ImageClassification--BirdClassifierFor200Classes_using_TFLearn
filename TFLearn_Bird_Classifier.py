@@ -88,6 +88,7 @@ def dataLoad(I,L,B):
     x_val = X[25:]
     y_val = Y[25:]
     '''
+    X,Y = tflearn.data_utils.shuffle(X,Y)
     #output_path = 'data/_dataset.h5'
     #build_hdf5_image_dataset(dataset_file, image_shape=(img_width,img_height), mode='file', output_path=output_path, categorical_labels=True, normalize=True)
     return X,Y
