@@ -21,17 +21,18 @@ print('Kernel Restarting..')
 tf.reset_default_graph()
 print('Kernel Restarted..')
 
-img_height = 100
-img_width = 100
+img_height = 50
+img_width = 50
 nb_classes = 200
 
-def dataLoad(I,L,B):
+def dataLoad(I,L,B,S):
     #X,Y = tflearn.data_utils.image_preloader(dataFile,image_shape=(None,None),mode='folder',categorical_labels=True,normalize=True)
     #X,Y = tflearn.data_utils.shuffle(X,Y)
 
     imgList = []
     classList = []
     boxList = []
+    splitList = []
 
     with open(L) as f:
         for line in f:
@@ -42,9 +43,14 @@ def dataLoad(I,L,B):
     with open(B) as f:
         for line in f:
             boxList.append(line)
+    with open(S) as f:
+        for line in f:
+            splitList.append(int(line.split(' ')[1]))
 
     X = []
     Y = []
+    VX = []
+    VY = []
     for i in range(0,len(imgList)):
         imgPath = imgList[i].split(' ')[-1].split('\n')[0]
         tempPath = imgPath
@@ -62,36 +68,30 @@ def dataLoad(I,L,B):
         pointC = int(points[3].split('.0')[0])
         pointD = int(points[4].split('.0')[0].split('\n')[0])
         crop_img = original_img.crop((pointA,pointB,pointC,pointD))
-        rez_img = crop_img.resize((100,100), Image.ANTIALIAS)
+        rez_img = crop_img.resize((img_width,img_height), Image.ANTIALIAS)
         img = np.array(rez_img)
-        X.append(img/255)
-        Y.append(classList[i].split(' ')[1].split('\n')[0])
+
+        #training=1
+        if splitList[i] == 1:
+            X.append(img/255)
+            Y.append(classList[i].split(' ')[1].split('\n')[0])
+        if splitList[i] == 0:
+            VX.append(img/255)
+            VY.append(classList[i].split(' ')[1].split('\n')[0])
+
+
         print('Serial - ' + str(i) + ': ' + tempPath)
 
-    #imgList = np.array(imgList)
-    #labelList = np.array(labelList)
-    #print('Size of ImageList = ' + str(imgList.shape))
-    #print('Size of LabelList = ' + str(labelList.shape))
     Y = to_categorical(Y,201)
+    VY = to_categorical(VY,201)
     Y = np.array(Y)
+    VY = np.array(VY)
     X = np.array(X)
-    #X = X.reshape(-1,img_width,img_height,3)
-    '''
-    x_train = X[:8250]
-    x_val = X[8250:11788]
-    y_train = Y[:8250]
-    y_val = Y[8250:11788]
-    '''
-    '''
-    x_train = X[:25]
-    y_train = Y[:25]
-    x_val = X[25:]
-    y_val = Y[25:]
-    '''
+    VX = np.array(VX)
+
     X,Y = tflearn.data_utils.shuffle(X,Y)
-    #output_path = 'data/_dataset.h5'
-    #build_hdf5_image_dataset(dataset_file, image_shape=(img_width,img_height), mode='file', output_path=output_path, categorical_labels=True, normalize=True)
-    return X,Y
+    VX,VY = tflearn.data_utils.shuffle(VX,VY)
+    return X,Y,VX,VY
 
 def create_model():
 	# Building 'AlexNet'
@@ -155,11 +155,11 @@ def create_own_model():
                          learning_rate=0.001)
     return model
 
-def train_model(model,x_train,y_train):
+def train_model(model,x_train,y_train,x_val,y_val):
 	model = tflearn.DNN(model, tensorboard_verbose=3)
 
-	model.fit(x_train, y_train, n_epoch=20,shuffle=False,
-			show_metric=True, batch_size=100, snapshot_step=50,
+	model.fit(x_train, y_train, n_epoch=50,shuffle=False,validation_set=(x_val,y_val),
+			show_metric=True, batch_size=500, snapshot_step=20,
 			snapshot_epoch=False, run_id='tflean_bird_run01')
 
     #print('Model Trained...')
@@ -175,7 +175,8 @@ def main():
     bboxFile = 'C:/Users/Nahid/Documents/MachineLearningProjects/zDataset/CUB_200_2011/CUB_200_2011/bounding_boxes.txt'
     imgList = 'C:/Users/Nahid/Documents/MachineLearningProjects/zDataset/CUB_200_2011/CUB_200_2011/images.txt'
     labelList = 'C:/Users/Nahid/Documents/MachineLearningProjects/zDataset/CUB_200_2011/CUB_200_2011/image_class_labels.txt'
-    x_train,y_train = dataLoad(imgList,labelList,bboxFile)
+    splitList = 'C:/Users/Nahid/Documents/MachineLearningProjects/zDataset/CUB_200_2011/CUB_200_2011/train_test_split.txt'
+    x_train,y_train,x_val,y_val = dataLoad(imgList,labelList,bboxFile,splitList)
     print('Data Ready For Training...')
 
     print('TrainX = ' + str(len(x_train)))
@@ -188,7 +189,7 @@ def main():
     print('Model Created...')
 
     print('Training Started...')
-    train_model(model,x_train,y_train)
+    train_model(model,x_train,y_train,x_val,y_val)
     print('Model Trained & Saved...')
     print('Done...')
 
