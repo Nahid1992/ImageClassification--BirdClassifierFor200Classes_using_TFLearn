@@ -50,6 +50,12 @@ def dataLoad(I,L,B):
         tempPath = imgPath
         imgPath = "C:/Users/Nahid/Documents/MachineLearningProjects/zDataset/CUB_200_2011/CUB_200_2011/images/" + imgPath
         original_img = Image.open(imgPath)
+
+        check = np.array(original_img)
+        check = len(check.shape)
+        if check < 3:
+            continue
+
         points = boxList[i].split(' ')
         pointA = int(points[1].split('.0')[0])
         pointB = int(points[2].split('.0')[0])
@@ -66,15 +72,16 @@ def dataLoad(I,L,B):
     #labelList = np.array(labelList)
     #print('Size of ImageList = ' + str(imgList.shape))
     #print('Size of LabelList = ' + str(labelList.shape))
-    Y = to_categorical(Y,200)
+    Y = to_categorical(Y,201)
+    Y = np.array(Y)
     X = np.array(X)
     #X = X.reshape(-1,img_width,img_height,3)
-
+    '''
     x_train = X[:8250]
     x_val = X[8250:11788]
     y_train = Y[:8250]
     y_val = Y[8250:11788]
-
+    '''
     '''
     x_train = X[:25]
     y_train = Y[:25]
@@ -83,7 +90,7 @@ def dataLoad(I,L,B):
     '''
     #output_path = 'data/_dataset.h5'
     #build_hdf5_image_dataset(dataset_file, image_shape=(img_width,img_height), mode='file', output_path=output_path, categorical_labels=True, normalize=True)
-    return x_train,y_train,x_val,y_val
+    return X,Y
 
 def create_model():
 	# Building 'AlexNet'
@@ -140,17 +147,17 @@ def create_own_model():
     network = max_pool_2d(network, 2)
     network = fully_connected(network, 512, activation='relu')
     network = dropout(network, 0.5)
-    network = fully_connected(network, nb_classes, activation='softmax')
+    network = fully_connected(network, nb_classes+1, activation='softmax')
 
     model = regression(network, optimizer='adam',
                          loss='categorical_crossentropy',
                          learning_rate=0.001)
     return model
 
-def train_model(model,x_train,y_train,x_val,y_val):
+def train_model(model,x_train,y_train):
 	model = tflearn.DNN(model, tensorboard_verbose=3)
 
-	model.fit(x_train, y_train, n_epoch=20, validation_set=(x_val, y_val), shuffle=False,
+	model.fit(x_train, y_train, n_epoch=20,shuffle=False,
 			show_metric=True, batch_size=100, snapshot_step=50,
 			snapshot_epoch=False, run_id='tflean_bird_run01')
 
@@ -167,7 +174,7 @@ def main():
     bboxFile = 'C:/Users/Nahid/Documents/MachineLearningProjects/zDataset/CUB_200_2011/CUB_200_2011/bounding_boxes.txt'
     imgList = 'C:/Users/Nahid/Documents/MachineLearningProjects/zDataset/CUB_200_2011/CUB_200_2011/images.txt'
     labelList = 'C:/Users/Nahid/Documents/MachineLearningProjects/zDataset/CUB_200_2011/CUB_200_2011/image_class_labels.txt'
-    x_train,y_train,x_val,y_val = dataLoad(imgList,labelList,bboxFile)
+    x_train,y_train = dataLoad(imgList,labelList,bboxFile)
     print('Data Ready For Training...')
 
     print('TrainX = ' + str(len(x_train)))
@@ -180,7 +187,7 @@ def main():
     print('Model Created...')
 
     print('Training Started...')
-    train_model(model,x_train,y_train,x_val,y_val)
+    train_model(model,x_train,y_train)
     print('Model Trained & Saved...')
     print('Done...')
 
